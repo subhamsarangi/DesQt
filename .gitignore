@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 meta.txt
 *.lock
+app_standalone.spec

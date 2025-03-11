@@ -1,18 +1,106 @@
 import sys
+import os
 import urllib.request
+import tempfile
 from pathlib import Path
-
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import QUrl, QCoreApplication
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
     QVBoxLayout,
     QWidget,
     QToolBar,
+    QPushButton,
     QStatusBar,
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtGui import QAction
+from PyQt6.QtWebEngineCore import QWebEnginePage
+from PyQt6.QtGui import QIcon, QAction
+
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
+def extract_offline_content():
+    """Extract offline content from the bundled resources or use existing files"""
+    # Check if we're running from a bundled executable
+    if getattr(sys, "frozen", False):
+        # When bundled with PyInstaller, extract the offline content to a temp dir
+        temp_dir = os.path.join(tempfile.gettempdir(), "desqt_app")
+        os.makedirs(temp_dir, exist_ok=True)
+
+        # Create the index.html file
+        index_path = os.path.join(temp_dir, "index.html")
+
+        # Try to access the bundled offline content
+        try:
+            bundled_path = os.path.join(sys._MEIPASS, "offline_content/index.html")
+            if os.path.exists(bundled_path):
+                # Copy the bundled content to the temp directory
+                with open(bundled_path, "r") as src, open(index_path, "w") as dst:
+                    dst.write(src.read())
+            else:
+                # Fall back to creating a basic offline page
+                create_basic_offline_page(index_path)
+        except Exception:
+            # If anything goes wrong, create a basic page
+            create_basic_offline_page(index_path)
+
+        return index_path
+    else:
+        # In development mode, create or use the offline content directory
+        offline_dir = Path("offline_content")
+        offline_dir.mkdir(exist_ok=True)
+
+        offline_file = offline_dir / "index.html"
+        if not offline_file.exists():
+            create_basic_offline_page(str(offline_file))
+
+        return str(offline_file.absolute())
+
+
+def create_basic_offline_page(file_path):
+    """Create a basic offline HTML page"""
+    offline_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DesQt - Offline</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .offline-message {
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-message">OFFLINE</div>
+</body>
+</html>
+"""
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(offline_html)
 
 
 class WebBrowser(QMainWindow):
@@ -24,7 +112,7 @@ class WebBrowser(QMainWindow):
         self.offline_path = offline_path
 
         # Set application name
-        self.setWindowTitle("Python Desktop App")
+        self.setWindowTitle("DesQt")
 
         # Set window size
         self.setMinimumSize(1024, 768)
@@ -80,7 +168,7 @@ class WebBrowser(QMainWindow):
         self.browser.titleChanged.connect(self.update_title)
 
     def update_title(self, title):
-        self.setWindowTitle(f"Python Desktop App - {title}")
+        self.setWindowTitle(f"DesQt - {title}")
 
     def is_online(self):
         """Check if we can connect to the internet"""
@@ -140,109 +228,18 @@ class WebBrowser(QMainWindow):
         self.load_appropriate_content()
 
 
-def create_offline_content():
-    """Create basic offline content if it doesn't exist"""
-    offline_dir = Path("offline_content")
-    offline_dir.mkdir(exist_ok=True)
-
-    offline_file = offline_dir / "index.html"
-
-    if not offline_file.exists():
-        offline_html = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Python Desktop App - Offline Mode</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #333;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        .message {
-            background-color: #f8f9fa;
-            border-left: 4px solid #007bff;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .docs-section {
-            margin-top: 30px;
-        }
-        code {
-            background-color: #f7f7f7;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        pre {
-            background-color: #f7f7f7;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Python Desktop App - Offline Mode</h1>
-        
-        <div class="message">
-            <p><strong>You are currently viewing cached offline content.</strong></p>
-            <p>The application cannot connect to <code>https://www.linux.org/</code> at this time. Use the "Check Connection" button in the toolbar to try reconnecting.</p>
-        </div>
-        
-        <div class="docs-section">
-            <h2>Cached Documentation</h2>
-            <p>This is a placeholder for offline documentation. In a complete implementation, you would:</p>
-            <ul>
-                <li>Create a script to download and save the content from your website for offline use</li>
-                <li>Structure the offline content to mirror the online site navigation</li>
-                <li>Update the offline content periodically when connected</li>
-            </ul>
-            
-            <h3>Example Code</h3>
-            <pre><code>def hello_world():
-    print("Welcome to Python Desktop!")
-    
-hello_world()</code></pre>
-        </div>
-    </div>
-</body>
-</html>
-"""
-        offline_file.write_text(offline_html)
-
-    return str(offline_file.absolute())
-
-
 def main():
     # Create application
     app = QApplication(sys.argv)
 
     # Set application name
-    app.setApplicationName("Python Desktop App")
+    app.setApplicationName("DesQt")
 
     # Website URL
     online_url = "https://www.linux.org/"
 
-    # Create offline content
-    offline_path = create_offline_content()
+    # Get/create offline content
+    offline_path = extract_offline_content()
 
     # Create browser instance
     browser = WebBrowser(online_url, offline_path)
