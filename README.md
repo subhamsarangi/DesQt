@@ -1,4 +1,5 @@
 ## DESKTOP APPLICATION USING PyQt
+![App Icon](app_icon.ico)
 
 ### Install Dependencies:
 `poetry install`
