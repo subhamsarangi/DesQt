@@ -6,3 +6,4 @@ __pycache__/
 meta.txt
 *.lock
 app_standalone.spec
+*.mp4

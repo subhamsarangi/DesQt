@@ -3,13 +3,18 @@
 
 ### Install Dependencies:
 `poetry install`
+
+This will install PyQt6, PyQt6-WebEngine, and pyinstaller among others.
+
+### Test the apps:
+
+`poetry run python -m fullscreen`
+
 or 
-`poetry add PyQt6 PyQt6-WebEngine pyinstaller`
 
-### Test the app:
-`poetry run python -m desqt.main`
+`poetry run python -m main`
 
-### Build the standalone executable:
+### Build the standalone executable for the main.py application:
 `poetry run python build.py`
 
 ### Find your executable:
